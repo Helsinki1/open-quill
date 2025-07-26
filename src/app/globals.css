@@ -1,0 +1,88 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 255, 255, 255;
+  --background-end-rgb: 255, 255, 255;
+}
+
+[data-theme="dark"] {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 0, 0, 0;
+  --background-end-rgb: 0, 0, 0;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+}
+
+/* Custom Lexical editor styles */
+.editor-container {
+  position: relative;
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  line-height: 1.6;
+}
+
+.editor-inner {
+  position: relative;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 20px;
+  min-height: 400px;
+  font-size: 16px;
+  resize: none;
+}
+
+.editor-placeholder {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  color: #999;
+  pointer-events: none;
+  font-size: 16px;
+}
+
+.suggestion-text {
+  color: #999;
+  font-style: italic;
+  opacity: 0.8;
+}
+
+.tone-badge {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+
+.tone-professional {
+  @apply bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300;
+}
+
+.tone-casual {
+  @apply bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300;
+}
+
+.tone-creative {
+  @apply bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300;
+}
+
+.tone-concise {
+  @apply bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300;
+}
+
+.loading-spinner {
+  @apply animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900;
+}
+
+/* Keyboard shortcut tooltip */
+.shortcut-tooltip {
+  @apply absolute z-50 px-2 py-1 text-xs text-gray-600 bg-gray-100 rounded shadow-lg;
+  @apply dark:text-gray-400 dark:bg-gray-800;
+} 
