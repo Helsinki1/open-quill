@@ -517,6 +517,15 @@ export default function WritingEditor({ onToggleResearch, showResearch, onEviden
     // Check for Ctrl/Cmd key combinations
     const isCtrlOrCmd = event.ctrlKey || event.metaKey;
 
+    // Handle tone analysis toggle (Ctrl/Cmd + [)
+    if (isCtrlOrCmd && event.key === '[') {
+      event.preventDefault();
+      event.stopPropagation();
+      // TODO: Add tone analysis toggle functionality
+      console.log('Tone analysis toggle requested');
+      return;
+    }
+
     // Handle research toggle (Ctrl+\)
     if (isCtrlOrCmd && event.key === '\\') {
       event.preventDefault();
