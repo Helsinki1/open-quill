@@ -61,6 +61,7 @@ interface AutocompleteRequest {
   purpose: string;
   genre: string;
   structure: string;
+  context?: string;
 }
 
 interface AutocompleteResponse {
@@ -74,13 +75,13 @@ interface AutocompleteResponse {
   details?: string;
 }
 
-async function generateAutocomplete(text: string, tone: ToneType, purpose: PurposeType, genre: GenreType, structure: StructureType): Promise<string> {
+async function generateAutocomplete(text: string, tone: ToneType, purpose: PurposeType, genre: GenreType, structure: StructureType, context?: string): Promise<string> {
   try {
     // Get lazy-initialized OpenAI client
     const openai = getOpenAIClient();
     
     // Check cache first
-    const cacheKey = `${text}_${tone}_${purpose}_${genre}_${structure}`;
+    const cacheKey = `${text}_${tone}_${purpose}_${genre}_${structure}_${context || ''}`;
     const currentTime = Date.now();
     
     const cached = requestCache.get(cacheKey);
@@ -94,7 +95,7 @@ async function generateAutocomplete(text: string, tone: ToneType, purpose: Purpo
     const genreHint = GENRE_CONTEXT[genre] || GENRE_CONTEXT.email;
     
     // Much simpler and more natural system prompt
-    const systemPrompt = `You are a helpful writing assistant. Your job is to naturally continue the text the user provides, ${toneHint}. The continuation should be contextually appropriate and ${purposeHint} in a way that's ${genreHint}.
+    const systemPrompt = `You are a helpful writing assistant. Your job is to naturally continue the text the user provides, ${toneHint}. The continuation should be contextually appropriate and ${purposeHint} in a way that's ${genreHint}.${context ? ` Context: ${context}` : ''}
 
 Important guidelines:
 - Continue the text naturally and coherently
@@ -103,6 +104,11 @@ Important guidelines:
 - Provide only the next logical words or phrase (3-15 words typically)
 - Don't add formatting, headers, or structure unless it naturally fits
 - Focus on what would logically come next in the sentence or thought`;
+    
+    // Debug logging to verify context is being received
+    if (context) {
+      console.log('🔍 Context received:', context);
+    }
     
     // Create OpenAI request optimized for speed
     const response = await openai.chat.completions.create({
@@ -180,6 +186,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<Autocompl
     const purpose = data.purpose.trim().toLowerCase() as PurposeType;
     const genre = data.genre.trim().toLowerCase() as GenreType;
     const structure = data.structure.trim().toLowerCase() as StructureType;
+    const context = data.context?.trim();
     
     // Validate inputs
     if (!text) {
@@ -211,7 +218,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<Autocompl
     }
     
     // Generate suggestion
-    const suggestion = await generateAutocomplete(text, tone, purpose, genre, structure);
+    const suggestion = await generateAutocomplete(text, tone, purpose, genre, structure, context);
     
     return NextResponse.json({
       suggestion,

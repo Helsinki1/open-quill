@@ -45,14 +45,14 @@ interface WritingEditorProps {
 
 // API service with request cancellation support
 const autocompleteService = {
-  async getSuggestion(text: string, tone: ToneType, purpose: PurposeType, genre: GenreType, structure: StructureType, signal?: AbortSignal): Promise<string> {
+  async getSuggestion(text: string, tone: ToneType, purpose: PurposeType, genre: GenreType, structure: StructureType, context?: string, signal?: AbortSignal): Promise<string> {
     try {
       const response = await fetch('/api/autocomplete', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ text, tone, purpose, genre, structure }),
+        body: JSON.stringify({ text, tone, purpose, genre, structure, context }),
         signal, // Add abort signal for cancellation
       });
 
@@ -108,6 +108,7 @@ function AutocompletePlugin({
   onSwitchGenre,
   onSwitchStructure,
   onSwitchMode,
+  userContextText,
 }: {
   currentTone: ToneType;
   setCurrentTone: (tone: ToneType) => void;
@@ -129,11 +130,12 @@ function AutocompletePlugin({
   onSwitchGenre: (direction: 'up' | 'down') => void;
   onSwitchStructure: (direction: 'up' | 'down') => void;
   onSwitchMode: (direction: 'left' | 'right') => void;
+  userContextText: string;
 }) {
   const [editor] = useLexicalComposerContext();
-  const [contextText, setContextText] = useState('');
+  const [editorContextText, setEditorContextText] = useState('');
   const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
-  const debouncedContext = useDebounce(contextText, 300); // Reduced from 500ms for faster response
+  const debouncedContext = useDebounce(editorContextText, 300); // Reduced from 500ms for faster response
 
   // Provide editor reference to parent component
   useEffect(() => {
@@ -218,7 +220,7 @@ function AutocompletePlugin({
           
           // Get focused context around cursor
           const context = getContextAroundCursor(fullText, textOffset);
-          setContextText(context);
+          setEditorContextText(context);
           
           // Update cursor position for overlay positioning
           try {
@@ -264,18 +266,24 @@ function AutocompletePlugin({
     const abortController = new AbortController();
     let isStale = false;
 
-    const generateSuggestion = async () => {
-      setAutocompleteState(prev => ({ ...prev, isLoading: true }));
-      
-      try {
-        const suggestion = await autocompleteService.getSuggestion(
-          debouncedContext, 
-          currentTone, 
-          currentPurpose, 
-          currentGenre, 
-          currentStructure,
-          abortController.signal
-        );
+          const generateSuggestion = async () => {
+        setAutocompleteState(prev => ({ ...prev, isLoading: true }));
+        
+        // Debug logging
+        if (userContextText) {
+          console.log('💬 Sending context to autocomplete:', userContextText);
+        }
+        
+        try {
+          const suggestion = await autocompleteService.getSuggestion(
+            debouncedContext, 
+            currentTone, 
+            currentPurpose, 
+            currentGenre, 
+            currentStructure,
+            userContextText,
+            abortController.signal
+          );
         
         // Only update if the request hasn't been cancelled
         if (!isStale && suggestion && suggestion.trim()) {
@@ -302,7 +310,7 @@ function AutocompletePlugin({
       isStale = true;
       abortController.abort();
     };
-  }, [debouncedContext, currentTone, currentPurpose, currentGenre, currentStructure, setAutocompleteState]);
+  }, [debouncedContext, currentTone, currentPurpose, currentGenre, currentStructure, userContextText, setAutocompleteState]);
 
   // Store cursor position for parent component
   useEffect(() => {
@@ -434,6 +442,8 @@ export default function WritingEditor({ onToggleResearch, showResearch, onEviden
   });
   const [editorText, setEditorText] = useState('');
   const [showPeoplePanel, setShowPeoplePanel] = useState(false);
+  const [showContextEditor, setShowContextEditor] = useState(false);
+  const [contextText, setContextText] = useState('');
   const tones: ToneType[] = ['professional', 'casual', 'creative', 'concise', 'witty', 'instructional', 'urgent', 'reflective'];
   const purposes: PurposeType[] = ['persuasive', 'informative', 'descriptive', 'flattering', 'narrative'];
   const genres: GenreType[] = ['email', 'essay', 'social post', 'report', 'story', 'research', 'sales', 'education'];
@@ -636,12 +646,9 @@ export default function WritingEditor({ onToggleResearch, showResearch, onEviden
   ]);
 
   // Copy to clipboard function
-  const copyToClipboard = useCallback(() => {
-    navigator.clipboard.writeText(editorText).then(() => {
-      // You could add a toast notification here
-      console.log('Text copied to clipboard');
-    });
-  }, [editorText]);
+  const handleToggleContext = useCallback(() => {
+    setShowContextEditor(prev => !prev);
+  }, []);
 
   const handleEvidenceUpload = useCallback(() => {
     if (!onEvidenceUpload) return;
@@ -686,11 +693,15 @@ export default function WritingEditor({ onToggleResearch, showResearch, onEviden
             Upload Evidence
           </button>
           <button
-            onClick={copyToClipboard}
-            className="px-3 py-1 text-sm rounded transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200"
-            title="Copy text to clipboard"
+            onClick={handleToggleContext}
+            className={`px-3 py-1 text-sm rounded transition-colors ${
+              showContextEditor 
+                ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+            title="Add context to improve autocomplete suggestions"
           >
-            Copy
+            Add Context
           </button>
         </div>
       </div>
@@ -705,6 +716,24 @@ export default function WritingEditor({ onToggleResearch, showResearch, onEviden
           onClick={() => setShowPeoplePanel(false)}
         />
       )}
+      {/* Context Editor */}
+      {showContextEditor && (
+        <div className="border-b border-gray-200 bg-gray-50">
+          <div className="p-3">
+            <label className="block text-xs font-medium text-gray-700 mb-2">
+              Additional Context (helps improve suggestions)
+            </label>
+            <textarea
+              value={contextText}
+              onChange={(e) => setContextText(e.target.value)}
+              placeholder="Describe what you're writing about, your goals, target audience, etc..."
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+              rows={2}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Editor */}
       <div className="relative">
         <LexicalComposer initialConfig={initialConfig}>
@@ -745,6 +774,7 @@ export default function WritingEditor({ onToggleResearch, showResearch, onEviden
             onSwitchGenre={handleSwitchGenre}
             onSwitchStructure={handleSwitchStructure}
             onSwitchMode={handleSwitchMode}
+            userContextText={contextText}
           />
         </LexicalComposer>
         
