@@ -37,6 +37,8 @@ interface AutocompleteState {
 interface WritingEditorProps {
   onToggleResearch?: (text: string) => void;
   showResearch?: boolean;
+  onEvidenceUpload?: (file: File, userText: string) => void;
+  showEvidence?: boolean;
 }
 
 // API service
@@ -395,7 +397,7 @@ const initialConfig = {
 };
 
 // Main WritingEditor component
-export default function WritingEditor({ onToggleResearch, showResearch }: WritingEditorProps) {
+export default function WritingEditor({ onToggleResearch, showResearch, onEvidenceUpload, showEvidence }: WritingEditorProps) {
   const [currentTone, setCurrentTone] = useState<ToneType>('professional');
   const [currentPurpose, setCurrentPurpose] = useState<PurposeType>('informative');
   const [currentGenre, setCurrentGenre] = useState<GenreType>('email');
@@ -604,6 +606,21 @@ export default function WritingEditor({ onToggleResearch, showResearch }: Writin
     });
   }, [editorText]);
 
+  const handleEvidenceUpload = useCallback(() => {
+    if (!onEvidenceUpload) return;
+    
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.txt';
+    fileInput.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        onEvidenceUpload(file, editorText);
+      }
+    };
+    fileInput.click();
+  }, [onEvidenceUpload, editorText]);
+
   return (
     <div className="w-full">
       {/* Toolbar */}
@@ -618,6 +635,13 @@ export default function WritingEditor({ onToggleResearch, showResearch }: Writin
           />
         
         <div className="flex items-center space-x-4">
+          <button
+            onClick={handleEvidenceUpload}
+            className="px-3 py-1 text-sm rounded transition-colors bg-blue-100 text-blue-700 hover:bg-blue-200"
+            title="Upload text file to extract relevant evidence"
+          >
+            Upload Evidence
+          </button>
           <button
             onClick={copyToClipboard}
             className="px-3 py-1 text-sm rounded transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200"

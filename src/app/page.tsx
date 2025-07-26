@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import WritingEditor from '../components/WritingEditor';
 import Header from '../components/Header';
 import ResearchPanel from '../components/ResearchPanel';
+import EvidencePanel from '../components/EvidencePanel';
 
 interface ResearchArticle {
   title: string;
@@ -18,11 +19,40 @@ interface ResearchArticle {
   pdfUrl?: string;
 }
 
+interface EvidenceItem {
+  text: string;
+  context: string;
+  source: string;
+  position: string;
+  relevanceScore: number;
+  relevanceReason: string;
+  type: 'statistic' | 'quote';
+}
+
+interface EvidenceData {
+  statistics: EvidenceItem[];
+  quotes: EvidenceItem[];
+  sourceInfo: {
+    file: string;
+    totalStatsFound?: number;
+    totalQuotesFound?: number;
+    relevantStatsCount?: number;
+    relevantQuotesCount?: number;
+  };
+  recommendations: string;
+}
+
 export default function Home() {
   const [showResearch, setShowResearch] = useState(false);
   const [researchArticles, setResearchArticles] = useState<ResearchArticle[]>([]);
   const [researchLoading, setResearchLoading] = useState(false);
   const [researchError, setResearchError] = useState<string | null>(null);
+  
+  // Evidence panel state
+  const [showEvidence, setShowEvidence] = useState(false);
+  const [evidenceData, setEvidenceData] = useState<EvidenceData | null>(null);
+  const [evidenceLoading, setEvidenceLoading] = useState(false);
+  const [evidenceError, setEvidenceError] = useState<string | null>(null);
 
   const fetchResearchArticles = async (text: string) => {
     if (!text.trim()) return;
@@ -67,6 +97,42 @@ export default function Home() {
     }
   };
 
+  const handleEvidenceUpload = async (file: File, userText: string) => {
+    setEvidenceLoading(true);
+    setEvidenceError(null);
+    setShowEvidence(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('userText', userText);
+      
+      const response = await fetch('/api/evidence', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to extract evidence');
+      }
+      
+      setEvidenceData(data.evidence);
+    } catch (error) {
+      console.error('Evidence upload error:', error);
+      setEvidenceError(error instanceof Error ? error.message : 'Failed to extract evidence');
+    } finally {
+      setEvidenceLoading(false);
+    }
+  };
+
+  const handleCloseEvidence = () => {
+    setShowEvidence(false);
+    setEvidenceData(null);
+    setEvidenceError(null);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 transition-colors duration-300">
       <Header />
@@ -88,6 +154,8 @@ export default function Home() {
             <WritingEditor 
               onToggleResearch={handleToggleResearch}
               showResearch={showResearch}
+              onEvidenceUpload={handleEvidenceUpload}
+              showEvidence={showEvidence}
             />
           </div>
 
@@ -157,11 +225,26 @@ export default function Home() {
         </div>
       )}
 
-      {/* Backdrop when research panel is open */}
-      {showResearch && (
+      {/* Evidence Panel - Fixed Right Sidebar */}
+      {showEvidence && (
+        <div className="fixed top-0 right-0 h-full w-96 z-50 transform transition-transform duration-300 ease-in-out">
+          <EvidencePanel
+            evidence={evidenceData}
+            isLoading={evidenceLoading}
+            error={evidenceError}
+            onClose={handleCloseEvidence}
+          />
+        </div>
+      )}
+
+      {/* Backdrop when research or evidence panel is open */}
+      {(showResearch || showEvidence) && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-20 z-40 transition-opacity duration-300"
-          onClick={() => handleToggleResearch('')}
+          onClick={() => {
+            if (showResearch) handleToggleResearch('');
+            if (showEvidence) handleCloseEvidence();
+          }}
         />
       )}
     </div>
