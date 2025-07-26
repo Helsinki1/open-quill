@@ -21,8 +21,6 @@ import {
   KEY_ARROW_UP_COMMAND,
   KEY_ARROW_DOWN_COMMAND,
 } from 'lexical';
-import { useAuth } from '../contexts/AuthContext';
-
 // Types
 type ToneType = 'professional' | 'casual' | 'creative' | 'concise' | 'witty' | 'instructional' | 'urgent' | 'reflective';
 type PurposeType = 'persuasive' | 'informative' | 'descriptive' | 'flattering' | 'narrative';
@@ -36,9 +34,7 @@ interface AutocompleteState {
   isLoading: boolean;
 }
 
-interface WritingEditorProps {
-  onAuthRequired?: () => void;
-}
+interface WritingEditorProps {}
 
 // API service
 const autocompleteService = {
@@ -383,7 +379,7 @@ function ControlsIndicator({
 
 // Initial editor config
 const initialConfig = {
-          namespace: 'Chameleon',
+          namespace: 'Open Quill',
   theme: {
     text: {
       bold: 'font-bold',
@@ -396,8 +392,7 @@ const initialConfig = {
 };
 
 // Main WritingEditor component
-export default function WritingEditor({ onAuthRequired }: WritingEditorProps) {
-  const { user } = useAuth();
+export default function WritingEditor({}: WritingEditorProps) {
   const [currentTone, setCurrentTone] = useState<ToneType>('professional');
   const [currentPurpose, setCurrentPurpose] = useState<PurposeType>('informative');
   const [currentGenre, setCurrentGenre] = useState<GenreType>('email');
@@ -576,33 +571,16 @@ export default function WritingEditor({ onAuthRequired }: WritingEditorProps) {
     handleSwitchPurpose, 
     handleSwitchGenre,
     handleSwitchStructure,
-    handleSwitchMode,
-    user,
-    onAuthRequired
+    handleSwitchMode
   ]);
-
-  // Handle copy events to restrict copying when not authenticated
-  const handleCopy = useCallback((event: React.ClipboardEvent) => {
-    if (!user) {
-      event.preventDefault();
-      onAuthRequired?.();
-      return;
-    }
-    // Allow copy if authenticated
-  }, [user, onAuthRequired]);
 
   // Copy to clipboard function
   const copyToClipboard = useCallback(() => {
-    if (!user) {
-      onAuthRequired?.();
-      return;
-    }
-    
     navigator.clipboard.writeText(editorText).then(() => {
       // You could add a toast notification here
       console.log('Text copied to clipboard');
     });
-  }, [editorText, user, onAuthRequired]);
+  }, [editorText]);
 
   return (
     <div className="w-full">
@@ -620,14 +598,10 @@ export default function WritingEditor({ onAuthRequired }: WritingEditorProps) {
         <div className="flex items-center space-x-4">
           <button
             onClick={copyToClipboard}
-            className={`px-3 py-1 text-sm rounded transition-colors ${
-              user 
-                ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600' 
-                : 'bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 hover:bg-orange-200 dark:hover:bg-orange-800 border border-orange-300 dark:border-orange-600'
-            }`}
-            title={user ? 'Copy text to clipboard' : 'Sign in required to copy'}
+            className="px-3 py-1 text-sm rounded transition-colors bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+            title="Copy text to clipboard"
           >
-            {user ? 'Copy' : '🔒 Copy'}
+            Copy
           </button>
         </div>
       </div>
@@ -641,7 +615,6 @@ export default function WritingEditor({ onAuthRequired }: WritingEditorProps) {
                 className="editor-inner min-h-96 outline-none resize-none"
                 placeholder="Start vibe-writing here..."
                 onKeyDown={handleKeyDown}
-                onCopy={handleCopy}
               />
             }
             placeholder={

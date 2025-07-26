@@ -9,10 +9,10 @@ export default function Header() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">CH</span>
+              <span className="text-white font-bold text-sm">OQ</span>
             </div>
             <span className="text-xl font-semibold text-gray-900 dark:text-white">
-              Chameleon
+              Open Quill
             </span>
           </div>
           

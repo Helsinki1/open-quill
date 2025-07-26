@@ -13,57 +13,43 @@ function getOpenAIClient(): OpenAI {
   return openaiClient;
 }
 
-// Tone prompts configuration
-const TONE_PROMPTS = {
-  professional: "professional, business-appropriate tone. Keep it formal, clear, and polished.",
-  casual: "casual, friendly conversational tone. Keep it relaxed and approachable.",
-  creative: "creative, engaging, and expressive tone. Be imaginative and captivating.",
-  concise: "concise, direct, and brief manner. Be clear and to the point.",
-  witty: "humorous, clever, and witty tone. Be amusing, intelligent, and entertaining while staying relevant.",
-  instructional: "clear, educational, and explanatory tone. Be helpful, informative, and easy to understand.",
-  urgent: "urgent tone with a sense of importance and immediacy. Convey time-sensitivity and critical importance.",
-  reflective: "thoughtful, contemplative, and introspective tone. Be philosophical, deep, and considerate."
+// Tone modifiers for natural continuation
+const TONE_MODIFIERS = {
+  professional: "maintaining a professional and polished tone",
+  casual: "keeping the casual and friendly tone",
+  creative: "continuing with creative and expressive language", 
+  concise: "being direct and concise",
+  witty: "maintaining the clever and humorous style",
+  instructional: "continuing in a clear, educational manner",
+  urgent: "keeping the sense of urgency and importance",
+  reflective: "maintaining the thoughtful and contemplative tone"
 } as const;
 
-// Purpose prompts configuration
-const PURPOSE_PROMPTS = {
-  persuasive: "with the purpose of persuading and convincing the reader. Use compelling arguments and persuasive language.",
-  informative: "with the purpose of informing and educating the reader. Provide clear, factual, and useful information.",
-  descriptive: "with the purpose of describing and painting a vivid picture. Use rich details and sensory language.",
-  flattering: "with the purpose of complimenting and praising. Use positive, appreciative, and admiring language.",
-  narrative: "with the purpose of telling a story or recounting events. Use narrative techniques and engaging storytelling."
+// Purpose context hints
+const PURPOSE_CONTEXT = {
+  persuasive: "continue building the argument persuasively",
+  informative: "continue providing helpful information",
+  descriptive: "continue with vivid descriptions",
+  flattering: "continue with positive and appreciative language",
+  narrative: "continue the story naturally"
 } as const;
 
-// Genre prompts configuration
-const GENRE_PROMPTS = {
-  email: "in an email format. Use appropriate email conventions, greetings, and professional structure.",
-  essay: "in an essay format. Use academic structure with clear arguments, evidence, and formal language.",
-  "social post": "as a social media post. Keep it engaging, concise, and suitable for social platforms.",
-  report: "in a report format. Use factual, objective language with clear sections and professional presentation.",
-  story: "as a story or narrative. Use storytelling elements, character development, and engaging plot structure.",
-  research: "in a research format. Use scholarly language, citations, evidence-based arguments, and academic rigor.",
-  sales: "as sales content. Use persuasive techniques, highlight benefits, and include compelling calls-to-action.",
-  education: "in an educational format. Use clear explanations, examples, and structured learning approaches."
+// Genre context (simplified)
+const GENRE_CONTEXT = {
+  email: "appropriate for email communication",
+  essay: "suitable for essay writing",
+  "social post": "fitting for social media",
+  report: "maintaining report-style language",
+  story: "continuing the narrative",
+  research: "using scholarly language",
+  sales: "maintaining persuasive sales language", 
+  education: "keeping educational clarity"
 } as const;
 
-// Structure prompts configuration
-const STRUCTURE_PROMPTS = {
-  chronological: "using chronological structure. Present information in time order, following a clear sequence of events.",
-  "problem-solution": "using problem-solution structure. Identify issues clearly and present effective solutions.",
-  "cause-effect": "using cause-effect structure. Show relationships between causes and their resulting effects.",
-  "compare-contrast": "using compare-contrast structure. Highlight similarities and differences between concepts.",
-  "question-answer": "using question-answer structure. Pose relevant questions and provide clear, direct answers.",
-  "counter-argument": "using counter-argument structure. Present opposing viewpoints and address counterpoints effectively.",
-  "for and against": "using for-and-against structure. Present balanced arguments on both sides of the issue.",
-  list: "using list structure. Present information as comma-separated items or ideas within sentences.",
-  "inverted pyramid": "using inverted pyramid structure. Start with the most important information first, then supporting details.",
-  narrative: "using narrative structure. Tell the story with beginning, middle, and end, using storytelling techniques."
-} as const;
-
-type ToneType = keyof typeof TONE_PROMPTS;
-type PurposeType = keyof typeof PURPOSE_PROMPTS;
-type GenreType = keyof typeof GENRE_PROMPTS;
-type StructureType = keyof typeof STRUCTURE_PROMPTS;
+type ToneType = keyof typeof TONE_MODIFIERS;
+type PurposeType = keyof typeof PURPOSE_CONTEXT;
+type GenreType = keyof typeof GENRE_CONTEXT;
+type StructureType = 'chronological' | 'problem-solution' | 'cause-effect' | 'compare-contrast' | 'question-answer' | 'counter-argument' | 'for and against' | 'list' | 'inverted pyramid' | 'narrative';
 
 // Request deduplication cache
 const requestCache = new Map<string, { suggestion: string; timestamp: number }>();
@@ -102,32 +88,48 @@ async function generateAutocomplete(text: string, tone: ToneType, purpose: Purpo
       return cached.suggestion;
     }
     
-    // Get tone, purpose, genre, and structure configurations
-    const tonePrompt = TONE_PROMPTS[tone] || TONE_PROMPTS.professional;
-    const purposePrompt = PURPOSE_PROMPTS[purpose] || PURPOSE_PROMPTS.informative;
-    const genrePrompt = GENRE_PROMPTS[genre] || GENRE_PROMPTS.email;
-    const structurePrompt = STRUCTURE_PROMPTS[structure] || STRUCTURE_PROMPTS.chronological;
+    // Create a natural, context-aware system prompt
+    const toneHint = TONE_MODIFIERS[tone] || TONE_MODIFIERS.professional;
+    const purposeHint = PURPOSE_CONTEXT[purpose] || PURPOSE_CONTEXT.informative;
+    const genreHint = GENRE_CONTEXT[genre] || GENRE_CONTEXT.email;
     
-    // Create combined system prompt
-    const systemPrompt = `You are a writing assistant. Continue the given text naturally in a ${tonePrompt} Write ${purposePrompt} Format it ${genrePrompt} Organize it ${structurePrompt} Provide only the next few words or phrase that would logically follow. Do not repeat the input text.`;
+    // Much simpler and more natural system prompt
+    const systemPrompt = `You are a helpful writing assistant. Your job is to naturally continue the text the user provides, ${toneHint}. The continuation should be contextually appropriate and ${purposeHint} in a way that's ${genreHint}.
+
+Important guidelines:
+- Continue the text naturally and coherently
+- Match the existing writing style and tone
+- Don't repeat what's already written
+- Provide only the next logical words or phrase (3-15 words typically)
+- Don't add formatting, headers, or structure unless it naturally fits
+- Focus on what would logically come next in the sentence or thought`;
     
-    // Create OpenAI request
+    // Create OpenAI request with better parameters for natural continuation
     const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: "gpt-4o-mini", // Better model for coherent text generation
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: `Continue this text: "${text}"` }
+        { role: "user", content: `Continue this text naturally: "${text}"` }
       ],
-      max_tokens: 30,
-      temperature: 0.6,
-      stop: ["\n", ".", "!", "?"],
-      presence_penalty: 0.1
+      max_tokens: 50, // Increased for better sentence completion
+      temperature: 0.7, // Slightly higher for more natural variation
+      top_p: 0.9, // Better nucleus sampling for coherence
+      frequency_penalty: 0.2, // Reduce repetition
+      presence_penalty: 0.1,
+      stop: ["\n\n", "...", "***"] // Remove period/exclamation stops to allow sentence completion
     });
     
     const suggestion = response.choices[0]?.message?.content?.trim() || '';
     
+    // Clean up the suggestion - remove quotes, extra formatting
+    const cleanSuggestion = suggestion
+      .replace(/^["']|["']$/g, '') // Remove surrounding quotes
+      .replace(/^\*\*.*?\*\*$/, '') // Remove markdown formatting like **text**
+      .replace(/^#+\s+/, '') // Remove markdown headers
+      .trim();
+    
     // Cache the result
-    requestCache.set(cacheKey, { suggestion, timestamp: currentTime });
+    requestCache.set(cacheKey, { suggestion: cleanSuggestion, timestamp: currentTime });
     
     // Clean old cache entries
     requestCache.forEach((value, key) => {
@@ -136,7 +138,7 @@ async function generateAutocomplete(text: string, tone: ToneType, purpose: Purpo
       }
     });
     
-    return suggestion;
+    return cleanSuggestion;
     
   } catch (error) {
     console.error('OpenAI API error:', error);
@@ -187,30 +189,23 @@ export async function POST(request: NextRequest): Promise<NextResponse<Autocompl
       );
     }
     
-    if (!(tone in TONE_PROMPTS)) {
+    if (!(tone in TONE_MODIFIERS)) {
       return NextResponse.json(
-        { error: `Invalid tone. Must be one of: ${Object.keys(TONE_PROMPTS).join(', ')}` },
+        { error: `Invalid tone. Must be one of: ${Object.keys(TONE_MODIFIERS).join(', ')}` },
         { status: 400 }
       );
     }
     
-    if (!(purpose in PURPOSE_PROMPTS)) {
+    if (!(purpose in PURPOSE_CONTEXT)) {
       return NextResponse.json(
-        { error: `Invalid purpose. Must be one of: ${Object.keys(PURPOSE_PROMPTS).join(', ')}` },
+        { error: `Invalid purpose. Must be one of: ${Object.keys(PURPOSE_CONTEXT).join(', ')}` },
         { status: 400 }
       );
     }
     
-    if (!(genre in GENRE_PROMPTS)) {
+    if (!(genre in GENRE_CONTEXT)) {
       return NextResponse.json(
-        { error: `Invalid genre. Must be one of: ${Object.keys(GENRE_PROMPTS).join(', ')}` },
-        { status: 400 }
-      );
-    }
-    
-    if (!(structure in STRUCTURE_PROMPTS)) {
-      return NextResponse.json(
-        { error: `Invalid structure. Must be one of: ${Object.keys(STRUCTURE_PROMPTS).join(', ')}` },
+        { error: `Invalid genre. Must be one of: ${Object.keys(GENRE_CONTEXT).join(', ')}` },
         { status: 400 }
       );
     }

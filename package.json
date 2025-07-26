@@ -1,5 +1,5 @@
 {
-  "name": "chameleon-next-app",
+  "name": "open-quill-next-app",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -12,9 +12,6 @@
     "@lexical/plain-text": "^0.12.2",
     "@lexical/react": "^0.12.2",
     "@lexical/utils": "^0.12.2",
-    "@supabase/auth-ui-react": "^0.4.7",
-    "@supabase/auth-ui-shared": "^0.1.8",
-    "@supabase/supabase-js": "^2.52.1",
     "lexical": "^0.12.2",
     "next": "13.5.4",
     "openai": "^4.20.1",

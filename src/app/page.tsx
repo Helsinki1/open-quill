@@ -4,17 +4,9 @@ import React, { useState } from 'react';
 import WritingEditor from '../components/WritingEditor';
 import ThemeToggle from '../components/ThemeToggle';
 import Header from '../components/Header';
-import AuthModal from '../components/AuthModal';
-import { useAuth } from '../contexts/AuthContext';
 
 export default function Home() {
   const [darkMode, setDarkMode] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const { user, loading, signOut } = useAuth();
-
-  const handleAuthRequired = () => {
-    setShowAuthModal(true);
-  };
 
   return (
     <div className={darkMode ? 'dark' : ''}>
@@ -26,47 +18,21 @@ export default function Home() {
             {/* Hero Section */}
             <div className="text-center mb-8">
               <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-                Chameleon
+                Open Quill
               </h1>
               <p className="text-lg text-gray-600 dark:text-gray-300 mb-6">
                 AI-assisted writing that retains your voice and style by autocompleting thoughts.
               </p>
               
-              {/* Theme Toggle and User Info */}
+              {/* Theme Toggle */}
               <div className="flex justify-center items-center gap-4 mb-8">
                 <ThemeToggle darkMode={darkMode} setDarkMode={setDarkMode} />
-                
-                {/* User Authentication Section */}
-                {!loading && (
-                  <div className="flex items-center gap-4">
-                    {user ? (
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm text-gray-600 dark:text-gray-300">
-                          Welcome, {user.email}
-                        </span>
-                        <button
-                          onClick={signOut}
-                          className="text-sm px-3 py-1 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                        >
-                          Sign Out
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setShowAuthModal(true)}
-                        className="text-sm px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
-                      >
-                        Sign In / Sign Up
-                      </button>
-                    )}
-                  </div>
-                )}
               </div>
             </div>
 
             {/* Writing Interface */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700">
-              <WritingEditor onAuthRequired={handleAuthRequired} />
+              <WritingEditor />
             </div>
 
             {/* Keyboard Shortcuts Help */}
@@ -107,19 +73,9 @@ export default function Home() {
               <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
                 * Use Cmd instead of Ctrl on macOS
               </div>
-              <div className="mt-2 text-xs text-orange-600 dark:text-orange-400 font-medium">
-                ⚠️ Sign in required for copy functionality
-              </div>
             </div>
           </div>
         </main>
-
-        {/* Authentication Modal */}
-        <AuthModal 
-          isOpen={showAuthModal} 
-          onClose={() => setShowAuthModal(false)}
-          darkMode={darkMode}
-        />
       </div>
     </div>
   );
