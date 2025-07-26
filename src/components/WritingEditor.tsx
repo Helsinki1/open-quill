@@ -34,7 +34,10 @@ interface AutocompleteState {
   isLoading: boolean;
 }
 
-interface WritingEditorProps {}
+interface WritingEditorProps {
+  onToggleResearch?: (text: string) => void;
+  showResearch?: boolean;
+}
 
 // API service
 const autocompleteService = {
@@ -392,7 +395,7 @@ const initialConfig = {
 };
 
 // Main WritingEditor component
-export default function WritingEditor({}: WritingEditorProps) {
+export default function WritingEditor({ onToggleResearch, showResearch }: WritingEditorProps) {
   const [currentTone, setCurrentTone] = useState<ToneType>('professional');
   const [currentPurpose, setCurrentPurpose] = useState<PurposeType>('informative');
   const [currentGenre, setCurrentGenre] = useState<GenreType>('email');
@@ -512,7 +515,27 @@ export default function WritingEditor({}: WritingEditorProps) {
     // Check for Ctrl/Cmd key combinations
     const isCtrlOrCmd = event.ctrlKey || event.metaKey;
 
+    // Handle research toggle (Ctrl+\)
+    if (isCtrlOrCmd && event.key === '\\') {
+      event.preventDefault();
+      event.stopPropagation();
+      if (onToggleResearch) {
+        onToggleResearch(editorText);
+      }
+      return;
+    }
 
+    // Handle Escape key - close research panel if open, otherwise dismiss suggestion
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      if (showResearch && onToggleResearch) {
+        onToggleResearch(editorText); // This will close the research panel
+      } else if (autocompleteState.isVisible) {
+        handleDismissSuggestion();
+      }
+      return;
+    }
 
     // Handle mode switching (works even when no suggestion is visible)
     if (isCtrlOrCmd && event.key === 'ArrowLeft') {
@@ -556,10 +579,6 @@ export default function WritingEditor({}: WritingEditorProps) {
       } else {
         handleSwitchStructure('down');
       }
-    } else if (event.key === 'Escape') {
-      event.preventDefault();
-      event.stopPropagation();
-      handleDismissSuggestion();
     }
   }, [
     autocompleteState.isVisible, 
@@ -571,7 +590,10 @@ export default function WritingEditor({}: WritingEditorProps) {
     handleSwitchPurpose, 
     handleSwitchGenre,
     handleSwitchStructure,
-    handleSwitchMode
+    handleSwitchMode,
+    editorText,
+    showResearch,
+    onToggleResearch
   ]);
 
   // Copy to clipboard function
@@ -585,7 +607,7 @@ export default function WritingEditor({}: WritingEditorProps) {
   return (
     <div className="w-full">
       {/* Toolbar */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="sticky top-0 z-20 bg-white dark:bg-gray-800 flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 shadow-sm">
                   <ControlsIndicator 
             tone={currentTone} 
             purpose={currentPurpose} 
