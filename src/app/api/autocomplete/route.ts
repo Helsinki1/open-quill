@@ -51,9 +51,9 @@ type PurposeType = keyof typeof PURPOSE_CONTEXT;
 type GenreType = keyof typeof GENRE_CONTEXT;
 type StructureType = 'chronological' | 'problem-solution' | 'cause-effect' | 'compare-contrast' | 'question-answer' | 'counter-argument' | 'for and against' | 'list' | 'inverted pyramid' | 'narrative';
 
-// Request deduplication cache
+// Request deduplication cache with optimized expiry
 const requestCache = new Map<string, { suggestion: string; timestamp: number }>();
-const CACHE_EXPIRY = 60 * 1000; // 60 seconds in milliseconds
+const CACHE_EXPIRY = 30 * 1000; // 30 seconds - shorter for more responsive caching
 
 interface AutocompleteRequest {
   text: string;
@@ -104,19 +104,19 @@ Important guidelines:
 - Don't add formatting, headers, or structure unless it naturally fits
 - Focus on what would logically come next in the sentence or thought`;
     
-    // Create OpenAI request with better parameters for natural continuation
+    // Create OpenAI request optimized for speed
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // Better model for coherent text generation
+      model: "gpt-3.5-turbo", // Faster model for better latency
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: `Continue this text naturally: "${text}"` }
       ],
-      max_tokens: 50, // Increased for better sentence completion
-      temperature: 0.7, // Slightly higher for more natural variation
-      top_p: 0.9, // Better nucleus sampling for coherence
-      frequency_penalty: 0.2, // Reduce repetition
-      presence_penalty: 0.1,
-      stop: ["\n\n", "...", "***"] // Remove period/exclamation stops to allow sentence completion
+      max_tokens: 45, // Reduced for faster response while maintaining quality
+      temperature: 0.7, // Optimized for speed vs creativity balance
+      top_p: 0.9,
+      frequency_penalty: 0.1, // Reduced processing overhead
+      presence_penalty: 0.05,
+      stop: ["\n\n", "...", "***"]
     });
     
     const suggestion = response.choices[0]?.message?.content?.trim() || '';

@@ -43,9 +43,9 @@ interface WritingEditorProps {
   onEditorTextChange?: (text: string) => void;
 }
 
-// API service
+// API service with request cancellation support
 const autocompleteService = {
-  async getSuggestion(text: string, tone: ToneType, purpose: PurposeType, genre: GenreType, structure: StructureType): Promise<string> {
+  async getSuggestion(text: string, tone: ToneType, purpose: PurposeType, genre: GenreType, structure: StructureType, signal?: AbortSignal): Promise<string> {
     try {
       const response = await fetch('/api/autocomplete', {
         method: 'POST',
@@ -53,6 +53,7 @@ const autocompleteService = {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ text, tone, purpose, genre, structure }),
+        signal, // Add abort signal for cancellation
       });
 
       if (!response.ok) {
@@ -132,7 +133,7 @@ function AutocompletePlugin({
   const [editor] = useLexicalComposerContext();
   const [contextText, setContextText] = useState('');
   const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
-  const debouncedContext = useDebounce(contextText, 500);
+  const debouncedContext = useDebounce(contextText, 300); // Reduced from 500ms for faster response
 
   // Provide editor reference to parent component
   useEffect(() => {
@@ -252,34 +253,55 @@ function AutocompletePlugin({
     return removeListener;
   }, [editor, onEditorTextChange]);
 
-  // Generate suggestions when context changes
+  // Generate suggestions when context changes with request cancellation
   useEffect(() => {
-    if (debouncedContext.trim().length < 5) {
+    if (debouncedContext.trim().length < 3) { // Reduced from 5 to 3 for more responsive suggestions
       setAutocompleteState(prev => ({ ...prev, isVisible: false, suggestion: '' }));
       return;
     }
+
+    // Create abort controller for request cancellation
+    const abortController = new AbortController();
+    let isStale = false;
 
     const generateSuggestion = async () => {
       setAutocompleteState(prev => ({ ...prev, isLoading: true }));
       
       try {
-        const suggestion = await autocompleteService.getSuggestion(debouncedContext, currentTone, currentPurpose, currentGenre, currentStructure);
-        if (suggestion && suggestion.trim()) {
+        const suggestion = await autocompleteService.getSuggestion(
+          debouncedContext, 
+          currentTone, 
+          currentPurpose, 
+          currentGenre, 
+          currentStructure,
+          abortController.signal
+        );
+        
+        // Only update if the request hasn't been cancelled
+        if (!isStale && suggestion && suggestion.trim()) {
           setAutocompleteState({
             suggestion: suggestion.trim(),
             isVisible: true,
             isLoading: false,
           });
-        } else {
+        } else if (!isStale) {
           setAutocompleteState(prev => ({ ...prev, isLoading: false, isVisible: false }));
         }
-      } catch (error) {
-        console.error('Error generating suggestion:', error);
-        setAutocompleteState(prev => ({ ...prev, isLoading: false, isVisible: false }));
-      }
+              } catch (error) {
+          if (!isStale) {
+            console.error('Error generating suggestion:', error);
+            setAutocompleteState(prev => ({ ...prev, isLoading: false, isVisible: false }));
+          }
+        }
     };
 
     generateSuggestion();
+
+    // Cleanup function to cancel ongoing requests
+    return () => {
+      isStale = true;
+      abortController.abort();
+    };
   }, [debouncedContext, currentTone, currentPurpose, currentGenre, currentStructure, setAutocompleteState]);
 
   // Store cursor position for parent component
