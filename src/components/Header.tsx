@@ -18,7 +18,7 @@ export default function Header() {
           
           <nav className="hidden md:flex items-center space-x-6">
             <a
-              href="https://github.com/Helsinki1/tab-writer"
+              href="https://github.com/Helsinki1/open-quill"
               target="_blank"
               rel="noopener noreferrer"
               className="text-gray-600 hover:text-gray-900 transition-colors"
