@@ -21,6 +21,7 @@ import {
   KEY_ARROW_UP_COMMAND,
   KEY_ARROW_DOWN_COMMAND,
 } from 'lexical';
+import PeoplePanel from './PeoplePanel';
 // Types
 type ToneType = 'professional' | 'casual' | 'creative' | 'concise' | 'witty' | 'instructional' | 'urgent' | 'reflective';
 type PurposeType = 'persuasive' | 'informative' | 'descriptive' | 'flattering' | 'narrative';
@@ -409,6 +410,7 @@ export default function WritingEditor({ onToggleResearch, showResearch, onEviden
     isLoading: false,
   });
   const [editorText, setEditorText] = useState('');
+  const [showPeoplePanel, setShowPeoplePanel] = useState(false);
   const tones: ToneType[] = ['professional', 'casual', 'creative', 'concise', 'witty', 'instructional', 'urgent', 'reflective'];
   const purposes: PurposeType[] = ['persuasive', 'informative', 'descriptive', 'flattering', 'narrative'];
   const genres: GenreType[] = ['email', 'essay', 'social post', 'report', 'story', 'research', 'sales', 'education'];
@@ -625,16 +627,22 @@ export default function WritingEditor({ onToggleResearch, showResearch, onEviden
     <div className="w-full">
       {/* Toolbar */}
       <div className="sticky top-0 z-20 bg-white flex items-center justify-between p-4 border-b border-gray-200 shadow-sm">
-                  <ControlsIndicator 
-            tone={currentTone} 
-            purpose={currentPurpose} 
-            genre={currentGenre}
-            structure={currentStructure}
-            currentMode={currentMode} 
-            isLoading={autocompleteState.isLoading} 
-          />
-        
+        <ControlsIndicator 
+          tone={currentTone} 
+          purpose={currentPurpose} 
+          genre={currentGenre}
+          structure={currentStructure}
+          currentMode={currentMode} 
+          isLoading={autocompleteState.isLoading} 
+        />
         <div className="flex items-center space-x-4">
+          <button
+            onClick={() => setShowPeoplePanel(true)}
+            className="px-3 py-1 text-sm rounded transition-colors bg-green-100 text-green-700 hover:bg-green-200"
+            title="Search for a person using AI"
+          >
+            People Search
+          </button>
           <button
             onClick={handleEvidenceUpload}
             className="px-3 py-1 text-sm rounded transition-colors bg-blue-100 text-blue-700 hover:bg-blue-200"
@@ -651,7 +659,17 @@ export default function WritingEditor({ onToggleResearch, showResearch, onEviden
           </button>
         </div>
       </div>
-
+      {showPeoplePanel && (
+        <div className="fixed top-0 right-0 h-full w-96 z-50">
+          <PeoplePanel onClose={() => setShowPeoplePanel(false)} />
+        </div>
+      )}
+      {showPeoplePanel && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-20 z-40 transition-opacity duration-300"
+          onClick={() => setShowPeoplePanel(false)}
+        />
+      )}
       {/* Editor */}
       <div className="relative">
         <LexicalComposer initialConfig={initialConfig}>
@@ -719,4 +737,4 @@ export default function WritingEditor({ onToggleResearch, showResearch, onEviden
       </div>
     </div>
   );
-} 
+}
