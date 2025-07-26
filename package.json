@@ -9,18 +9,23 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.57.0",
     "@lexical/plain-text": "^0.12.2",
     "@lexical/react": "^0.12.2",
     "@lexical/utils": "^0.12.2",
+    "@tailwindcss/line-clamp": "^0.4.4",
+    "axios": "^1.11.0",
+    "dotenv": "^17.2.1",
+    "encoding": "^0.1.13",
     "lexical": "^0.12.2",
     "next": "13.5.4",
     "openai": "^4.20.1",
     "react": "^18",
     "react-dom": "^18",
-    "encoding": "^0.1.13"
+    "xml2js": "^0.6.2"
   },
   "devDependencies": {
-    "@types/node": "^20",
+    "@types/node": "^20.19.9",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10",
