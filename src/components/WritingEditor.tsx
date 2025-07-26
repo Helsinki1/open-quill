@@ -39,6 +39,7 @@ interface WritingEditorProps {
   showResearch?: boolean;
   onEvidenceUpload?: (file: File, userText: string) => void;
   showEvidence?: boolean;
+  onEditorTextChange?: (text: string) => void;
 }
 
 // API service
@@ -397,7 +398,7 @@ const initialConfig = {
 };
 
 // Main WritingEditor component
-export default function WritingEditor({ onToggleResearch, showResearch, onEvidenceUpload, showEvidence }: WritingEditorProps) {
+export default function WritingEditor({ onToggleResearch, showResearch, onEvidenceUpload, showEvidence, onEditorTextChange }: WritingEditorProps) {
   const [currentTone, setCurrentTone] = useState<ToneType>('professional');
   const [currentPurpose, setCurrentPurpose] = useState<PurposeType>('informative');
   const [currentGenre, setCurrentGenre] = useState<GenreType>('email');
@@ -417,7 +418,10 @@ export default function WritingEditor({ onToggleResearch, showResearch, onEviden
   // Handle editor text changes
   const handleEditorTextChange = useCallback((text: string) => {
     setEditorText(text);
-  }, []);
+    if (onEditorTextChange) {
+      onEditorTextChange(text);
+    }
+  }, [onEditorTextChange]);
 
   // Handle tone switching
   const handleSwitchTone = useCallback((direction: 'up' | 'down') => {

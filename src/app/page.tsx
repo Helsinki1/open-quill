@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import WritingEditor from '../components/WritingEditor';
 import Header from '../components/Header';
 import ResearchPanel from '../components/ResearchPanel';
 import EvidencePanel from '../components/EvidencePanel';
+import ToneAnalysisCard from '../components/ToneAnalysisCard';
 
 interface ResearchArticle {
   title: string;
@@ -53,6 +54,10 @@ export default function Home() {
   const [evidenceData, setEvidenceData] = useState<EvidenceData | null>(null);
   const [evidenceLoading, setEvidenceLoading] = useState(false);
   const [evidenceError, setEvidenceError] = useState<string | null>(null);
+  
+  // Tone analysis state
+  const [showToneAnalysis, setShowToneAnalysis] = useState(false);
+  const [editorText, setEditorText] = useState('');
 
   const fetchResearchArticles = async (text: string) => {
     if (!text.trim()) return;
@@ -133,6 +138,25 @@ export default function Home() {
     setEvidenceError(null);
   };
 
+  // Keyboard handler for tone analysis toggle
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const isCtrlOrCmd = event.ctrlKey || event.metaKey;
+      
+      if (isCtrlOrCmd && event.key === ']') {
+        event.preventDefault();
+        setShowToneAnalysis(prev => !prev);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const handleEditorTextChange = (text: string) => {
+    setEditorText(text);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 transition-colors duration-300">
       <Header />
@@ -156,6 +180,7 @@ export default function Home() {
               showResearch={showResearch}
               onEvidenceUpload={handleEvidenceUpload}
               showEvidence={showEvidence}
+              onEditorTextChange={handleEditorTextChange}
             />
           </div>
 
@@ -205,6 +230,14 @@ export default function Home() {
                 <span className="text-gray-600">Close research panel:</span>
                 <kbd className="px-2 py-1 bg-gray-100 rounded text-gray-900">Escape</kbd>
               </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Toggle tone analysis:</span>
+                <div className="flex space-x-1">
+                  <kbd className="px-2 py-1 bg-gray-100 rounded text-gray-900">Ctrl</kbd>
+                  <span className="text-gray-600">+</span>
+                  <kbd className="px-2 py-1 bg-gray-100 rounded text-gray-900">]</kbd>
+                </div>
+              </div>
             </div>
             <div className="mt-3 text-xs text-gray-500">
               * Use Cmd instead of Ctrl on macOS
@@ -247,6 +280,13 @@ export default function Home() {
           }}
         />
       )}
+
+      {/* Tone Analysis Card */}
+      <ToneAnalysisCard
+        isVisible={showToneAnalysis}
+        editorText={editorText}
+        onClose={() => setShowToneAnalysis(false)}
+      />
     </div>
   );
 } 
