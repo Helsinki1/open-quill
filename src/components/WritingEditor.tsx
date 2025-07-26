@@ -44,14 +44,14 @@ interface WritingEditorProps {
 
 // API service
 const autocompleteService = {
-  async getSuggestion(text: string, tone: ToneType, purpose: PurposeType, genre: GenreType, structure: StructureType): Promise<string> {
+  async getSuggestion(text: string, tone: ToneType, purpose: PurposeType, genre: GenreType, structure: StructureType, context?: string): Promise<string> {
     try {
       const response = await fetch('/api/autocomplete', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ text, tone, purpose, genre, structure }),
+        body: JSON.stringify({ text, tone, purpose, genre, structure, context }),
       });
 
       if (!response.ok) {
@@ -106,6 +106,7 @@ function AutocompletePlugin({
   onSwitchGenre,
   onSwitchStructure,
   onSwitchMode,
+  contextText,
 }: {
   currentTone: ToneType;
   setCurrentTone: (tone: ToneType) => void;
@@ -127,11 +128,10 @@ function AutocompletePlugin({
   onSwitchGenre: (direction: 'up' | 'down') => void;
   onSwitchStructure: (direction: 'up' | 'down') => void;
   onSwitchMode: (direction: 'left' | 'right') => void;
+  contextText: string;
 }) {
   const [editor] = useLexicalComposerContext();
-  const [contextText, setContextText] = useState('');
   const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
-  const debouncedContext = useDebounce(contextText, 500);
 
   // Provide editor reference to parent component
   useEffect(() => {
@@ -214,9 +214,14 @@ function AutocompletePlugin({
             }
           }
           
-          // Get focused context around cursor
-          const context = getContextAroundCursor(fullText, textOffset);
-          setContextText(context);
+          // Get focused context around cursor for autocomplete
+          const editorContext = getContextAroundCursor(fullText, textOffset);
+          
+          // Trigger suggestion generation when editor text changes
+          if ((window as any).__triggerSuggestion) {
+            console.log('Triggering suggestion generation');
+            (window as any).__triggerSuggestion();
+          }
           
           // Update cursor position for overlay positioning
           try {
@@ -251,25 +256,36 @@ function AutocompletePlugin({
     return removeListener;
   }, [editor, onEditorTextChange]);
 
-  // Generate suggestions when context changes
+  // Generate suggestions when context changes or editor text changes
   useEffect(() => {
-    if (debouncedContext.trim().length < 5) {
-      setAutocompleteState(prev => ({ ...prev, isVisible: false, suggestion: '' }));
-      return;
-    }
-
     const generateSuggestion = async () => {
+      // Get current editor text for context
+      const editor = (window as any).__lexicalEditor;
+      if (!editor) return;
+      
+      const root = editor.getRootElement();
+      const fullText = root?.textContent || '';
+      
+      if (fullText.trim().length < 5) {
+        setAutocompleteState(prev => ({ ...prev, isVisible: false, suggestion: '' }));
+        return;
+      }
+
       setAutocompleteState(prev => ({ ...prev, isLoading: true }));
       
       try {
-        const suggestion = await autocompleteService.getSuggestion(debouncedContext, currentTone, currentPurpose, currentGenre, currentStructure);
+        // Use the last 150 characters of editor text for context
+        const editorContext = fullText.slice(-150);
+        const suggestion = await autocompleteService.getSuggestion(editorContext, currentTone, currentPurpose, currentGenre, currentStructure, contextText);
         if (suggestion && suggestion.trim()) {
+          console.log('Setting suggestion:', suggestion.trim());
           setAutocompleteState({
             suggestion: suggestion.trim(),
             isVisible: true,
             isLoading: false,
           });
         } else {
+          console.log('No suggestion received');
           setAutocompleteState(prev => ({ ...prev, isLoading: false, isVisible: false }));
         }
       } catch (error) {
@@ -278,8 +294,54 @@ function AutocompletePlugin({
       }
     };
 
-    generateSuggestion();
-  }, [debouncedContext, currentTone, currentPurpose, currentGenre, currentStructure, setAutocompleteState]);
+    // Add a small delay to avoid too many API calls
+    const timeoutId = setTimeout(generateSuggestion, 500);
+    return () => clearTimeout(timeoutId);
+  }, [contextText, currentTone, currentPurpose, currentGenre, currentStructure, setAutocompleteState]);
+
+  // Set up a global trigger for editor text changes
+  useEffect(() => {
+    // Store a function to trigger suggestion generation
+    (window as any).__triggerSuggestion = () => {
+      const generateSuggestion = async () => {
+        const editor = (window as any).__lexicalEditor;
+        if (!editor) return;
+        
+        const root = editor.getRootElement();
+        const fullText = root?.textContent || '';
+        
+        if (fullText.trim().length < 5) {
+          setAutocompleteState(prev => ({ ...prev, isVisible: false, suggestion: '' }));
+          return;
+        }
+
+        setAutocompleteState(prev => ({ ...prev, isLoading: true }));
+        
+        try {
+          const editorContext = fullText.slice(-150);
+          const suggestion = await autocompleteService.getSuggestion(editorContext, currentTone, currentPurpose, currentGenre, currentStructure, contextText);
+          if (suggestion && suggestion.trim()) {
+            setAutocompleteState({
+              suggestion: suggestion.trim(),
+              isVisible: true,
+              isLoading: false,
+            });
+          } else {
+            setAutocompleteState(prev => ({ ...prev, isLoading: false, isVisible: false }));
+          }
+        } catch (error) {
+          console.error('Error generating suggestion:', error);
+          setAutocompleteState(prev => ({ ...prev, isLoading: false, isVisible: false }));
+        }
+      };
+
+      setTimeout(generateSuggestion, 1000);
+    };
+
+    return () => {
+      delete (window as any).__triggerSuggestion;
+    };
+  }, [contextText, currentTone, currentPurpose, currentGenre, currentStructure, setAutocompleteState]);
 
   // Store cursor position for parent component
   useEffect(() => {
@@ -410,10 +472,14 @@ export default function WritingEditor({ onToggleResearch, showResearch, onEviden
     isLoading: false,
   });
   const [editorText, setEditorText] = useState('');
+  const [contextText, setContextText] = useState('');
   const tones: ToneType[] = ['professional', 'casual', 'creative', 'concise', 'witty', 'instructional', 'urgent', 'reflective'];
   const purposes: PurposeType[] = ['persuasive', 'informative', 'descriptive', 'flattering', 'narrative'];
   const genres: GenreType[] = ['email', 'essay', 'social post', 'report', 'story', 'research', 'sales', 'education'];
   const structures: StructureType[] = ['chronological', 'problem-solution', 'cause-effect', 'compare-contrast', 'question-answer', 'counter-argument', 'for and against', 'list', 'inverted pyramid', 'narrative'];
+
+  // Debounced context for autocomplete
+  const debouncedContext = useDebounce(contextText, 500);
 
   // Handle editor text changes
   const handleEditorTextChange = useCallback((text: string) => {
@@ -638,14 +704,14 @@ export default function WritingEditor({ onToggleResearch, showResearch, onEviden
     <div className="w-full">
       {/* Toolbar */}
       <div className="sticky top-0 z-20 bg-white flex items-center justify-between p-4 border-b border-gray-200 shadow-sm">
-                  <ControlsIndicator 
-            tone={currentTone} 
-            purpose={currentPurpose} 
-            genre={currentGenre}
-            structure={currentStructure}
-            currentMode={currentMode} 
-            isLoading={autocompleteState.isLoading} 
-          />
+        <ControlsIndicator 
+          tone={currentTone} 
+          purpose={currentPurpose} 
+          genre={currentGenre}
+          structure={currentStructure}
+          currentMode={currentMode} 
+          isLoading={autocompleteState.isLoading} 
+        />
         
         <div className="flex items-center space-x-4">
           <button
@@ -662,6 +728,26 @@ export default function WritingEditor({ onToggleResearch, showResearch, onEviden
           >
             Copy
           </button>
+        </div>
+      </div>
+
+      {/* Context Box */}
+      <div className="bg-gray-50 border-b border-gray-200 p-3">
+        <div className="max-w-2xl mx-auto">
+          <label htmlFor="context-box" className="block text-sm font-medium text-gray-700 mb-2">
+            Context Box - Add details to personalize autocomplete suggestions
+          </label>
+          <textarea
+            id="context-box"
+            value={contextText}
+            onChange={(e) => setContextText(e.target.value)}
+            placeholder="Add context like: 'writing for a tech blog', 'targeting college students', 'formal business communication', etc."
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+            rows={2}
+          />
+          <div className="text-xs text-gray-500 mt-1">
+            Context helps generate more relevant and personalized autocomplete suggestions.
+          </div>
         </div>
       </div>
 
@@ -705,6 +791,7 @@ export default function WritingEditor({ onToggleResearch, showResearch, onEviden
             onSwitchGenre={handleSwitchGenre}
             onSwitchStructure={handleSwitchStructure}
             onSwitchMode={handleSwitchMode}
+            contextText={contextText}
           />
         </LexicalComposer>
         
