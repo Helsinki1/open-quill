@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Configure the runtime for this API route
+export const runtime = 'nodejs';
 
 interface EvidenceItem {
   text: string;
@@ -18,12 +17,22 @@ interface EvidenceItem {
 interface Evidence {
   statistics: EvidenceItem[];
   quotes: EvidenceItem[];
-  sourceInfo: any;
+  sourceInfo: {
+    file: string;
+  };
   recommendations: string;
 }
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if OpenAI API key is configured
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json(
+        { error: 'OpenAI API key not configured' },
+        { status: 500 }
+      );
+    }
+
     const data = await request.formData();
     const file = data.get('file') as File;
     const userText = data.get('userText') as string;
@@ -46,6 +55,11 @@ export async function POST(request: NextRequest) {
     // Read the file content
     const fileBuffer = await file.arrayBuffer();
     const fileContent = new TextDecoder().decode(fileBuffer);
+
+    // Initialize OpenAI client
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
 
     // Use OpenAI to extract relevant quotes and statistics
     const completion = await openai.chat.completions.create({
@@ -87,7 +101,7 @@ export async function POST(request: NextRequest) {
         }
       ],
       temperature: 0.3,
-      max_tokens: 2000
+      max_tokens: 1500
     });
 
     const responseContent = completion.choices[0]?.message?.content;
@@ -98,7 +112,18 @@ export async function POST(request: NextRequest) {
     let extractedEvidence;
     try {
       extractedEvidence = JSON.parse(responseContent);
+      // Ensure the extracted evidence has the expected structure
+      if (!extractedEvidence || typeof extractedEvidence !== 'object') {
+        extractedEvidence = { quotes: [], statistics: [] };
+      }
+      if (!Array.isArray(extractedEvidence.quotes)) {
+        extractedEvidence.quotes = [];
+      }
+      if (!Array.isArray(extractedEvidence.statistics)) {
+        extractedEvidence.statistics = [];
+      }
     } catch (parseError) {
+      console.warn('Failed to parse OpenAI response:', parseError);
       // Fallback if JSON parsing fails
       extractedEvidence = { quotes: [], statistics: [] };
     }
